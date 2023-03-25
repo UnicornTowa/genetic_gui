@@ -1,10 +1,14 @@
-from PyQt5.QtCore import Qt
-from PyQt5.QtWidgets import QApplication, QWidget, QLabel, QLineEdit, QPushButton, QMessageBox, QDesktopWidget, \
-    QCheckBox, QTableWidget, QTableWidgetItem, QAbstractItemView
-from PyQt5.QtGui import QIntValidator, QDoubleValidator, QFont, QIcon
-import sys
-import genetic
 import random
+import sys
+
+from PyQt5.QtCore import Qt
+from PyQt5.QtGui import QIntValidator, QDoubleValidator, QFont, QIcon
+from PyQt5.QtWidgets import QApplication, QWidget, QLabel, QLineEdit, QPushButton, QMessageBox, QDesktopWidget, \
+    QCheckBox, QTableWidget, QTableWidgetItem, QAbstractItemView, QHeaderView
+
+import genetic
+import guigraph
+# noinspection PyUnresolvedReferences
 from math import *
 
 
@@ -27,7 +31,7 @@ class MainWindow(QWidget):
         # Валидаторы проверяющие тип ввода
         only_int = QIntValidator()
         only_float = QDoubleValidator()
-        only_float.setNotation(QDoubleValidator.Notation.StandardNotation)
+        only_float.setNotation(QDoubleValidator.StandardNotation)
         only_float.setRange(float(0), float(1), 6)
 
         # Текстовые поля
@@ -98,6 +102,11 @@ class MainWindow(QWidget):
         self.reset_button.clicked.connect(self.reset_params)
         self.reset_button.setMinimumWidth(200)
 
+        self.draw_button = QPushButton('Draw', self)
+        self.draw_button.setToolTip('Note: slow for complicated functions')
+        self.draw_button.clicked.connect(self.draw)
+        self.draw_window = None
+
         # Расположение элементов ввода на окне
         self.population_size_label.move(10, 80)
         self.population_size_input.move(160, 80)
@@ -115,7 +124,8 @@ class MainWindow(QWidget):
         self.stabilize_checkbox.move(10, 230)
 
         self.start_button.move(10, 300)
-        self.reset_button.move(130, 300)
+        self.reset_button.move(126, 300)
+        self.draw_button.move(330, 300)
 
         # Вывод результатов 290
         self.best_sol_label = QLabel('Best solution:', self)
@@ -151,6 +161,7 @@ class MainWindow(QWidget):
         self.mutation_rate_label.setFont(f)
         self.start_button.setFont(f)
         self.reset_button.setFont(f)
+        self.draw_button.setFont(f)
 
         # Создание таблицы вывода
         self.table = QTableWidget(self)
@@ -164,6 +175,7 @@ class MainWindow(QWidget):
         self.table.setColumnWidth(0, 150)
         self.table.setColumnWidth(1, 150)
         self.table.setColumnWidth(2, 150)
+        self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Fixed)
         self.table.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self.table.setRowCount(1)
 
@@ -177,6 +189,13 @@ class MainWindow(QWidget):
         qt_rectangle.moveCenter(center_point)
         self.move(qt_rectangle.topLeft())
 
+    def draw(self):
+        if self.edit_checkbox.isChecked() and self.table.rowCount() == 1:
+            input_error('Рассчитайте минимум перед построением графика')
+            return
+        self.draw_window = guigraph.DrawWindow(table=self.table)
+        self.draw_window.show()
+
     def refresh_table(self, values):
         self.table.clearContents()
         self.table.setRowCount(len(values))
@@ -184,7 +203,6 @@ class MainWindow(QWidget):
             self.table.setItem(i, 0, QTableWidgetItem(str(round(genetic.ff(values[i]), 3))))
             self.table.setItem(i, 1, QTableWidgetItem(str(round(values[i][0], 3))))
             self.table.setItem(i, 2, QTableWidgetItem(str(round(values[i][1], 2))))
-
 
     def reset_params(self):
         self.population_size_input.setText('100')
@@ -229,10 +247,11 @@ class MainWindow(QWidget):
                         return
                 genetic.fitness_function = lambda x, y: eval(expr)
             except SyntaxError:
-                input_error('Неверно введена функция')
+                input_error('Некорректная функция')
                 return
             except NameError:
                 input_error('Использована недоступная функция')
+                return
         try:
             population_size = int(self.population_size_input.text())
             generations = int(self.generations_input.text())
@@ -256,15 +275,14 @@ class MainWindow(QWidget):
             i += 1
             if not generation:
                 print('Population is extinct')
-                res = generation
+                i -= 1
                 break
             generation.sort(key=genetic.ff)
             best_solution = generation[0]
             best_res = genetic.ff(best_solution)
             print("Generation:", i, "Optimal solution:", best_solution,
                   "Fitness:", genetic.fitness_function(*best_solution), "Population size:", len(generation))
-            if i == generations:
-                res = generation
+            res = generation
         self.set_res(best_res, best_solution, i)
         self.refresh_table(res)
 
