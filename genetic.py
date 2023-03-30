@@ -8,10 +8,13 @@ def fitness_function(x, y):
     return x ** 2 + 3 * y ** 2 + 2 * x * y
 
 
+# Другое представление функции
 def ff(x):
     return fitness_function(x[0], x[1])
 
 
+# Копия исходной функции и метод сброса,
+# (для возврата к исходной функции после использования кастомной)
 backup = deepcopy(fitness_function)
 
 
@@ -20,17 +23,35 @@ def reset_ff():
     fitness_function = deepcopy(backup)
 
 
+# Хранение, сброс и изменения границ
+ranges = {'x1': -10, 'x2': 10, 'y1': -10, 'y2': 10}
+
+
+def reset_ranges():
+    ranges['x1'] = -10
+    ranges['y1'] = -10
+    ranges['x2'] = 10
+    ranges['y2'] = 10
+
+
+def set_ranges(x1, x2, y1, y2):
+    ranges['x1'] = x1
+    ranges['x2'] = x2
+    ranges['y1'] = y1
+    ranges['y2'] = y2
+
+
 # Создание начальной популяции
 def create_population(size):
     population = []
     for _ in range(size):
-        x = random.uniform(-10, 10)
-        y = random.uniform(-10, 10)
+        x = random.uniform(ranges['x1'], ranges['x2'])
+        y = random.uniform(ranges['y1'], ranges['y2'])
         population.append((x, y))
     return population
 
 
-# Выбор родителей с помощью турнирного отбора
+# Выбор 2-х родителей с помощью турнирного отбора
 def selection(population):
     selected = []
     for _ in range(2):
@@ -48,11 +69,13 @@ def crossover(parent1, parent2, crossover_rate):
         x2, y2 = parent2
         child1 = (random.uniform(x1, x2), random.uniform(y1, y2))
         child2 = (random.uniform(x1, x2), random.uniform(y1, y2))
-        # child = (x1 + x2) / 2, (y1 + y2) / 2
+        # Запрет скрещивания с самим собой
+        if child1 == child2:
+            return 0, 0
     return child1, child2
 
 
-# Мутация гена
+# Мутация
 def mutate(individual, mutation_rate):
     x, y = individual
     if random.random() < mutation_rate:
@@ -61,6 +84,27 @@ def mutate(individual, mutation_rate):
     return x, y
 
 
+delta = 1
+
+
+def set_delta(new_delta):
+    global delta
+    delta = new_delta
+
+
+def mutate_new(individual, mutation_rate, delta=1):
+    x, y = individual
+    if random.random() < mutation_rate:
+        if random.random() < 0.5:
+            x += random.gauss(mu=0, sigma=delta)
+            y += random.gauss(mu=0, sigma=delta)
+        else:
+            x += random.gauss(mu=0, sigma=1 / delta)
+            y += random.gauss(mu=0, sigma=1 / delta)
+    return x, y
+
+
+# Стабилизация численности популяции (вкл/выкл)
 stabilization = False
 
 
@@ -69,6 +113,8 @@ def toggle_stabilization():
     stabilization ^= 1
 
 
+# Функция стабилизации, чем сильнее численность популяции отклоняется от исходной,
+# тем более сильное корректирующее воздействие оказывается на crossover_rate
 def stabilization_func(size, n):
     return copysign(((-1) / (1 + 1 / n ** 2 * (size - n) ** 2) + 1), (n - size))
 
@@ -81,12 +127,10 @@ def reproduction(population, crossover_rate, mutation_rate):
     for _ in range(len(population)):
         parent1, parent2 = selection(population)
         children = crossover(parent1, parent2, crossover_rate)
-        if children[0]:
+        if children[0]:  # = если кроссинговер произошел
             for child in children:
-                mutate(child, mutation_rate)
+                mutate_new(child, mutation_rate, delta=delta)
             new_population.extend(children)
-            # new_population.extend([parent1, parent2])
-            # new_population.append(random.choice([parent1, parent2]))
     return new_population
 
 
@@ -94,7 +138,7 @@ def reproduction(population, crossover_rate, mutation_rate):
 args = {'population_size': 0, 'generations': 0, 'crossover_rate': 0, 'mutation_rage': 0}
 
 
-# Задание аргументов
+# Задание аргументов, с проверками корректности значений
 def set_args(population_size, generations, crossover_rate, mutation_rate):
     if population_size > 1:
         args['population_size'] = population_size
@@ -114,29 +158,15 @@ def set_args(population_size, generations, crossover_rate, mutation_rate):
         raise ValueError('Введите корректный коэффициент мутации')
 
 
-# Генератор популяций
+# Генератор, итеративно создающий популяции
 def next_gen():
     population = create_population(args['population_size'])
     for _ in range(1 + args['generations']):
         yield population
         population = reproduction(population, deepcopy(args['crossover_rate']), args['mutation_rage'])
+        # Остановка если популяция вымерла
         if len(population) < 2:
             population = 0
+        # Отсечение при превышении порога численности популяции
         elif len(population) > 5000:
             population = population[0:5000]
-
-# set_args(population_size=100, generations=100, crossover_rate=0.5, mutation_rate=0.3)
-# i = 0
-# for generation in next_gen():
-#     if not generation:
-#         print('Population is extinct')
-#         break
-#     generation.sort(key=lambda x: fitness_function(x[0], x[1]))
-#     best_solution = generation[0]
-#     print("Generation:", i, "Optimal solution:", best_solution,
-#           "Fitness:", fitness_function(*best_solution), "Population size:", len(generation))
-#     i += 1
-#
-# # Пример использования
-# best_solution = genetic_algorithm(population_size=100, generations=10, crossover_rate=0.8, mutation_rate=0.2)
-# print("Optimal solution:", best_solution, "Fitness:", fitness_function(*best_solution))
