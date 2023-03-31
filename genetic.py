@@ -83,7 +83,8 @@ def mutate(individual, mutation_rate):
         y += random.gauss(mu=0, sigma=1)
     return x, y
 
-
+# delta - параметр, показывающий движение
+# лучшего найденного решения
 delta = 1
 
 
@@ -91,16 +92,16 @@ def set_delta(new_delta):
     global delta
     delta = new_delta
 
-
-def mutate_new(individual, mutation_rate, delta=1):
+# Альтернативный метод мутации с переменным sigma
+def mutate_new(individual, mutation_rate, sigma=1):
     x, y = individual
     if random.random() < mutation_rate:
         if random.random() < 0.5:
-            x += random.gauss(mu=0, sigma=delta)
-            y += random.gauss(mu=0, sigma=delta)
+            x += random.gauss(mu=0, sigma=sigma)
+            y += random.gauss(mu=0, sigma=sigma)
         else:
-            x += random.gauss(mu=0, sigma=1 / delta)
-            y += random.gauss(mu=0, sigma=1 / delta)
+            x += random.gauss(mu=0, sigma=1 / sigma)
+            y += random.gauss(mu=0, sigma=1 / sigma)
     return x, y
 
 
@@ -129,7 +130,7 @@ def reproduction(population, crossover_rate, mutation_rate):
         children = crossover(parent1, parent2, crossover_rate)
         if children[0]:  # = если кроссинговер произошел
             for child in children:
-                mutate_new(child, mutation_rate, delta=delta)
+                mutate_new(child, mutation_rate, sigma=delta)
             new_population.extend(children)
     return new_population
 

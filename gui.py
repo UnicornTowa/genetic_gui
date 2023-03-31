@@ -268,40 +268,35 @@ class MainWindow(QWidget):
     # Установка кастомной функции
     def set_custom_ff(self):
         # Проверка кастомной функции на комплексность и выполнимость
-        if self.edit_checkbox.isChecked():
-            try:
-                expr = str(self.fitness_input.text())
+        try:
+            expr = str(self.fitness_input.text())
 
-                def test_func(x, y):
-                    return eval(expr)
+            def test_func(x, y):
+                return eval(expr)
 
-                #test_func = lambda x, y: eval(expr)
-
-                for _ in range(10):
-                    a = random.randint(-10, 10)
-                    b = random.randint(-10, 10)
-                    if isinstance(test_func(a, b), complex):
-                        input_error('Введена комплексная функция')
-                        return 0
-                genetic.fitness_function = lambda x, y: eval(expr)
-                return 1
-            except ZeroDivisionError:
-                input_error('Ошибка, деление на 0')
-                return 0
-            except SyntaxError:
-                input_error('Некорректная функция')
-                return 0
-            except NameError:
-                input_error('Использована недоступная функция')
-                return 0
-            except TypeError:
-                input_error('Неправильный синтаксис')
-                return 0
-            except ValueError:
-                input_error('Некорректная функция')
-                return 0
-        else:
+            for _ in range(10):
+                a = random.randint(-10, 10)
+                b = random.randint(-10, 10)
+                if isinstance(test_func(a, b), complex):
+                    input_error('Введена комплексная функция')
+                    return 0
+            genetic.fitness_function = lambda x, y: test_func(x, y)
             return 1
+        except ZeroDivisionError:
+            input_error('Ошибка, деление на 0')
+            return 0
+        except SyntaxError:
+            input_error('Некорректная функция')
+            return 0
+        except NameError:
+            input_error('Использована недоступная функция')
+            return 0
+        except TypeError:
+            input_error('Неправильный синтаксис')
+            return 0
+        except ValueError:
+            input_error('Некорректная функция')
+            return 0
 
     def set_params(self):
         # Получение параметров из полей ввода с проверкой
@@ -317,14 +312,14 @@ class MainWindow(QWidget):
         try:
             genetic.set_args(population_size, generations, crossover_rate, mutation_rate)
             return 1
-        except ValueError as e:
-            input_error(str(e))
+        except ValueError as error:
+            input_error(str(error))
             return 0
 
     # Запуск алгоритма
     def run_algorithm(self):
-        # Установка функции
-        if not self.set_custom_ff():
+        # Установка кастомной функции
+        if self.edit_checkbox.isChecked() and not self.set_custom_ff():
             return
         # Установка аргументов
         if not self.set_params():
@@ -338,6 +333,7 @@ class MainWindow(QWidget):
         for generation in genetic.next_gen():
             if not generation:
                 print('Population is extinct')
+                info('Популяция вымерла на итерации ' + str(i))
                 break
             i += 1
             generation.sort(key=genetic.ff)
